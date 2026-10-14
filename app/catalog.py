@@ -3,8 +3,13 @@ from app.store import Store
 
 
 def search_books(books: list[Book], query: str) -> list[Book]:
-    """Books whose title or author contains the query."""
-    return [b for b in books if query in b.title or query in b.author]
+    """Books whose title or author contains the query (case-insensitive)."""
+    query = query.casefold()
+    return [
+        b
+        for b in books
+        if query in b.title.casefold() or query in b.author.casefold()
+    ]
 
 
 def paginate(books: list[Book], limit: int, offset: int) -> list[Book]:
