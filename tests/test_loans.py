@@ -1,6 +1,8 @@
 from datetime import timedelta
 
 from app.config import DAILY_LATE_FEE_CENTS, LOAN_PERIOD_DAYS, MAX_ACTIVE_LOANS
+from app.loans import is_overdue
+from app.models import Loan
 from tests.conftest import TODAY
 
 
@@ -44,6 +46,21 @@ def test_member_with_overdue_loan_cannot_borrow(client, today):
     assert response.json()["detail"] == "Member has overdue loans"
 
 
+def test_member_can_borrow_on_due_date(client, today):
+    checkout(client, book_id=1)
+    today.value = TODAY + timedelta(days=LOAN_PERIOD_DAYS)
+    response = checkout(client, book_id=2)
+    assert response.status_code == 201
+
+
+def test_member_loans_not_flagged_overdue_on_due_date(client, today):
+    checkout(client, book_id=1)
+    today.value = TODAY + timedelta(days=LOAN_PERIOD_DAYS)
+    loans = client.get("/members/1/loans").json()
+    assert len(loans) == 1
+    assert loans[0]["overdue"] is False
+
+
 def test_return_on_time_has_no_fee(client, today):
     loan = checkout(client).json()
     today.value = TODAY + timedelta(days=3)
@@ -71,3 +88,40 @@ def test_member_loans_flag_overdue(client, today):
     loans = client.get("/members/1/loans").json()
     assert len(loans) == 1
     assert loans[0]["overdue"] is True
+
+
+def test_returned_loan_not_flagged_overdue_even_if_past_due(client, today):
+    loan = checkout(client, book_id=1).json()
+    today.value = TODAY + timedelta(days=LOAN_PERIOD_DAYS + 1)
+    client.post(f"/loans/{loan['id']}/return")
+    loans = client.get("/members/1/loans").json()
+    assert len(loans) == 1
+    assert loans[0]["overdue"] is False
+
+
+def _make_loan(due):
+    return Loan(id=1, book_id=1, member_id=1, checked_out=due - timedelta(days=LOAN_PERIOD_DAYS), due=due)
+
+
+def test_is_overdue_false_before_due_date():
+    due = TODAY
+    loan = _make_loan(due)
+    assert is_overdue(loan, due - timedelta(days=1)) is False
+
+
+def test_is_overdue_false_on_due_date():
+    due = TODAY
+    loan = _make_loan(due)
+    assert is_overdue(loan, due) is False
+
+
+def test_is_overdue_true_day_after_due_date():
+    due = TODAY
+    loan = _make_loan(due)
+    assert is_overdue(loan, due + timedelta(days=1)) is True
+
+
+def test_is_overdue_false_when_returned_regardless_of_date():
+    due = TODAY
+    loan = _make_loan(due).copy(update={"returned": due + timedelta(days=10)})
+    assert is_overdue(loan, due + timedelta(days=20)) is False

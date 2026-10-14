@@ -16,7 +16,7 @@ class LoanError(Exception):
 
 
 def is_overdue(loan: Loan, today: date) -> bool:
-    return loan.returned is None and today >= loan.due
+    return loan.returned is None and today > loan.due
 
 
 def late_fee_cents(due: date, returned: date) -> int:
