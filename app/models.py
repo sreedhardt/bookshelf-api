@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Book(BaseModel):
@@ -11,10 +11,11 @@ class Book(BaseModel):
     year: int
     copies: int = Field(ge=0)
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {"id": 1, "title": "Dune", "author": "Frank Herbert", "year": 1965, "copies": 2}
         }
+    )
 
 
 class Member(BaseModel):

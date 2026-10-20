@@ -58,6 +58,6 @@ def return_loan(store: Store, loan_id: int, today: date) -> Loan:
     if loan.returned is not None:
         raise LoanError(409, "Loan already returned")
 
-    returned = loan.copy(update={"returned": today, "fee_cents": late_fee_cents(loan.due, today)})
+    returned = loan.model_copy(update={"returned": today, "fee_cents": late_fee_cents(loan.due, today)})
     store.loans[loan_id] = returned
     return returned
