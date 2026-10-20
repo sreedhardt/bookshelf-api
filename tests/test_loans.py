@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from app.config import DAILY_LATE_FEE_CENTS, LOAN_PERIOD_DAYS, MAX_ACTIVE_LOANS
+from app.config import DAILY_LATE_FEE_CENTS, LOAN_PERIOD_DAYS, MAX_ACTIVE_LOANS, MAX_RENEWALS
 from tests.conftest import TODAY
 
 
@@ -63,6 +63,54 @@ def test_cannot_return_twice(client):
     loan = checkout(client).json()
     client.post(f"/loans/{loan['id']}/return")
     assert client.post(f"/loans/{loan['id']}/return").status_code == 409
+
+
+def test_renew_extends_due_date(client):
+    loan = checkout(client).json()
+    response = client.post(f"/loans/{loan['id']}/renew")
+    assert response.status_code == 200
+    renewed = response.json()
+    assert renewed["due"] == (TODAY + timedelta(days=2 * LOAN_PERIOD_DAYS)).isoformat()
+    assert renewed["renewals"] == 1
+
+
+def test_renew_increments_count_each_time(client):
+    loan = checkout(client).json()
+    for expected in range(1, MAX_RENEWALS + 1):
+        response = client.post(f"/loans/{loan['id']}/renew")
+        assert response.status_code == 200
+        assert response.json()["renewals"] == expected
+
+
+def test_renew_fails_past_max_renewals(client):
+    loan = checkout(client).json()
+    for _ in range(MAX_RENEWALS):
+        assert client.post(f"/loans/{loan['id']}/renew").status_code == 200
+    response = client.post(f"/loans/{loan['id']}/renew")
+    assert response.status_code == 409
+    assert response.json()["detail"] == f"Loan has already been renewed {MAX_RENEWALS} times"
+
+
+def test_cannot_renew_overdue_loan(client, today):
+    loan = checkout(client).json()
+    today.value = TODAY + timedelta(days=LOAN_PERIOD_DAYS)
+    response = client.post(f"/loans/{loan['id']}/renew")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Overdue loans must be returned before renewal"
+
+
+def test_cannot_renew_returned_loan(client):
+    loan = checkout(client).json()
+    client.post(f"/loans/{loan['id']}/return")
+    response = client.post(f"/loans/{loan['id']}/renew")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Loan already returned"
+
+
+def test_renew_unknown_loan_returns_404(client):
+    response = client.post("/loans/999/renew")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Loan 999 not found"
 
 
 def test_member_loans_flag_overdue(client, today):

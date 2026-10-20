@@ -15,6 +15,16 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 - Returns after the due date cost 25 cents per day, capped at $20.
 - A member can hold at most 3 books at once.
 - A member with an overdue loan cannot borrow until it is returned.
+- A loan can be renewed up to 2 times, pushing the due date out by another
+  loan period each time. Overdue or already-returned loans cannot be
+  renewed.
+
+## API
+
+- `POST /loans/{loan_id}/renew` — Renew a loan, extending its due date by
+  14 days. Returns the updated loan (200). Fails with 404 if the loan does
+  not exist, or 409 if it has already been renewed twice, is overdue, or
+  has already been returned.
 
 ## Layout
 
