@@ -31,6 +31,7 @@ class Loan(BaseModel):
     due: date
     returned: Optional[date] = None
     fee_cents: int = 0
+    renewals: int = 0
 
 
 class CheckoutRequest(BaseModel):

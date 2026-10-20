@@ -3,7 +3,13 @@
 from datetime import date, timedelta
 
 from app.catalog import available_copies
-from app.config import DAILY_LATE_FEE_CENTS, LOAN_PERIOD_DAYS, MAX_ACTIVE_LOANS, MAX_LATE_FEE_CENTS
+from app.config import (
+    DAILY_LATE_FEE_CENTS,
+    LOAN_PERIOD_DAYS,
+    MAX_ACTIVE_LOANS,
+    MAX_LATE_FEE_CENTS,
+    MAX_RENEWALS,
+)
 from app.models import Loan
 from app.store import Store
 
@@ -61,3 +67,21 @@ def return_loan(store: Store, loan_id: int, today: date) -> Loan:
     returned = loan.copy(update={"returned": today, "fee_cents": late_fee_cents(loan.due, today)})
     store.loans[loan_id] = returned
     return returned
+
+
+def renew_loan(store: Store, loan_id: int, today: date) -> Loan:
+    loan = store.loans.get(loan_id)
+    if loan is None:
+        raise LoanError(404, f"Loan {loan_id} not found")
+    if loan.returned is not None:
+        raise LoanError(409, "Loan already returned")
+    if is_overdue(loan, today):
+        raise LoanError(409, "Overdue loans must be returned before renewal")
+    if loan.renewals >= MAX_RENEWALS:
+        raise LoanError(409, f"Loan has already been renewed {MAX_RENEWALS} times")
+
+    renewed = loan.copy(
+        update={"due": loan.due + timedelta(days=LOAN_PERIOD_DAYS), "renewals": loan.renewals + 1}
+    )
+    store.loans[loan_id] = renewed
+    return renewed

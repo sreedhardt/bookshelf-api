@@ -26,6 +26,14 @@ def return_loan(loan_id: int, store: Store = Depends(get_store), today: date = D
         raise HTTPException(e.status_code, e.detail)
 
 
+@router.post("/loans/{loan_id}/renew", response_model=Loan)
+def renew_loan(loan_id: int, store: Store = Depends(get_store), today: date = Depends(get_today)):
+    try:
+        return loans.renew_loan(store, loan_id, today)
+    except loans.LoanError as e:
+        raise HTTPException(e.status_code, e.detail)
+
+
 @router.get("/loans/{loan_id}", response_model=Loan)
 def get_loan(loan_id: int, store: Store = Depends(get_store)):
     loan = store.loans.get(loan_id)
