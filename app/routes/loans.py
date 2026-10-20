@@ -39,7 +39,7 @@ def member_loans(member_id: int, store: Store = Depends(get_store), today: date 
     if member_id not in store.members:
         raise HTTPException(404, f"Member {member_id} not found")
     return [
-        {**loan.dict(), "overdue": loans.is_overdue(loan, today)}
+        {**loan.model_dump(), "overdue": loans.is_overdue(loan, today)}
         for loan in store.loans.values()
         if loan.member_id == member_id
     ]

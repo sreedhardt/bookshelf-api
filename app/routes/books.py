@@ -28,4 +28,4 @@ def get_book(book_id: int, store: Store = Depends(get_store)):
     book = store.books.get(book_id)
     if book is None:
         raise HTTPException(404, f"Book {book_id} not found")
-    return {**book.dict(), "available": available_copies(store, book_id)}
+    return {**book.model_dump(), "available": available_copies(store, book_id)}
